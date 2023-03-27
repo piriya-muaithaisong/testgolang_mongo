@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -11,17 +12,17 @@ import (
 )
 
 type createUserRequest struct {
-	Username       string `json:"username" bson:"username"`
-	FistName       string `json:"first_name" bson:"first_name"`
-	LastName       string `json:"last_name" bson:"last_name"`
-	Email          string `json:"email" bson:"email"`
-	Org            string `json:"org" bson:"org"`
-	BillingAddress string `json:"billing_address" bson:"billing_address"`
-	Password       string `json:"password"`
+	Username       string `json:"username" bson:"username" binding:"required"`
+	FistName       string `json:"first_name" bson:"first_name" binding:"required"`
+	LastName       string `json:"last_name" bson:"last_name" binding:"required"`
+	Email          string `json:"email" bson:"email" binding:"required"`
+	Org            string `json:"org" bson:"org" binding:"required"`
+	BillingAddress string `json:"billing_address" bson:"billing_address" binding:"required"`
+	Password       string `json:"password" binding:"required"`
 }
 
 type userResponse struct {
-	Username       string    `json:"username" bson:"username"`
+	Username       string    `json:"username" bson:"username" `
 	FistName       string    `json:"first_name" bson:"first_name"`
 	LastName       string    `json:"last_name" bson:"last_name"`
 	Email          string    `json:"email" bson:"email"`
@@ -70,14 +71,30 @@ func (server *Server) createUser(ctx *gin.Context) {
 		BillingAddress:    req.BillingAddress,
 	}
 
+	check_user, err := server.store.UserClient.GetUserByUsername(ctx, req.Username)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	if (check_user != db.User{}) {
+		ctx.JSON(http.StatusForbidden, errorResponse(fmt.Errorf("user name already exist")))
+		return
+	}
+
 	err = server.store.UserClient.CreateUser(ctx, &user)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 
-	user, err = server.store.UserClient.GetUserByID(ctx, id.String())
-	rep := newUserResponse(user)
+	new_user, err := server.store.UserClient.GetUserByID(ctx, id.Hex())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	rep := newUserResponse(new_user)
 
 	ctx.JSON(http.StatusOK, rep)
 
@@ -141,6 +158,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		RefreshToken: refreshToken,
 		IsBlocked:    false,
 		ExpiresAt:    refreshPayload.ExpiredAt,
+		CreateAt:     time.Now(),
 	}
 
 	err = server.store.SessionClient.CreateSession(ctx, &session)
