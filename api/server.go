@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/piriya-muaithaisong/testgolang_mongo/authorization"
 	"github.com/piriya-muaithaisong/testgolang_mongo/db"
 	"github.com/piriya-muaithaisong/testgolang_mongo/token"
 	"github.com/piriya-muaithaisong/testgolang_mongo/utils"
@@ -23,6 +24,9 @@ func NewServer(config utils.Config, store *db.MongoStore) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create token maker: %w", err)
 	}
+
+	authorization.SetupCasbin(config.DBSource)
+
 	server := &Server{
 		store:      store,
 		tokenMaker: tokenMaker,

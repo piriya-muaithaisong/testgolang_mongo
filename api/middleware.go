@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/piriya-muaithaisong/testgolang_mongo/token"
 )
@@ -47,5 +48,39 @@ func authMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 
 		ctx.Set(authorizationPayloadKey, payload)
 		ctx.Next()
+	}
+}
+
+func casbinMiddleware(obj string, act string, enforcer *casbin.Enforcer) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get current user/subject
+		sub, existed := c.Get(authorizationPayloadKey)
+		if !existed {
+			c.AbortWithStatusJSON(401, gin.H{"msg": "User hasn't logged in yet"})
+			return
+		}
+
+		payload := sub.(*token.Payload)
+
+		// Load policy from Database
+		err := enforcer.LoadPolicy()
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{"msg": "Failed to load policy from DB"})
+			return
+		}
+
+		// Casbin enforces policy
+		ok, err := enforcer.Enforce(payload.UserID, obj, act)
+
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{"msg": "Error occurred when authorizing user"})
+			return
+		}
+
+		if !ok {
+			c.AbortWithStatusJSON(403, gin.H{"msg": "You are not authorized"})
+			return
+		}
+		c.Next()
 	}
 }

@@ -27,7 +27,7 @@ func NewSessionClient(client *mongo.Client, dbName string) *SessionClient {
 func (c *SessionClient) CreateSession(ctx context.Context, session *Session) error {
 	_, err := c.sessionCol.InsertOne(ctx, session)
 	if err != nil {
-		log.Print(fmt.Errorf("could not add new user: %w", err))
+		log.Print(fmt.Errorf("could not add new session: %w", err))
 		return err
 	}
 	return nil

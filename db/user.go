@@ -13,6 +13,8 @@ import (
 
 type UserInt interface {
 	CreateUser(ctx context.Context, user *User) error
+	GetUserByID(ctx context.Context, id string) (User, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
 }
 
 type UserClient struct {
